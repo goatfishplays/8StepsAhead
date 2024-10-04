@@ -1,1 +1,2 @@
-# 8StepsAhead
+# FoodFighters
+Game Lab Intro Project
