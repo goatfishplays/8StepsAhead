@@ -23,6 +23,7 @@ public class Player : Entity
     public LayerMask groundLayer;
     public float groundedTimeBuffer = 0.2f;
     public float lastGroundedTime = 0f;
+    public int groundsTouching;
 
     [Header("Jump")]
     public float jumpForce = 12f;
@@ -35,7 +36,9 @@ public class Player : Entity
     [Header("Gravity")]
     public float gravityScale = 1f;
     public float fallGravityMultiplier = 1.2f;
-
+    public float grip = 1.5f;
+    public Vector2 centerOfGrav;
+    // public float rotFix = 1f;
 
 
 
@@ -66,9 +69,6 @@ public class Player : Entity
     protected override void Awake()
     {
         base.Awake();
-        print(rb.centerOfMass);
-        rb.centerOfMass = rb.centerOfMass + Vector2.down * 5f;
-        print(rb.centerOfMass);
 
         pInputs = new InputsThing();
         pInputs.Player.Enable();
@@ -122,6 +122,10 @@ public class Player : Entity
     protected void FixedUpdate()
     {
         relVel = transform.InverseTransformDirection(rb.velocity);
+        // print(rb.centerOfMass);
+        rb.centerOfMass = centerOfGrav;
+        // print(rb.centerOfMass);
+
 
         // Movement
         // --------
@@ -142,7 +146,6 @@ public class Player : Entity
             rb.AddForce(transform.right * movement);
 
             #endregion
-
 
             #region Friction
             // if grounded and trying to stop apply extra friction
@@ -177,14 +180,23 @@ public class Player : Entity
                 lastGroundedTime = groundedTimeBuffer;
                 rb.gravityScale = 0;
             }
-            #endregion
+            #endregion 
 
             #region Jump
             if (lastGroundedTime > 0 && lastJumpTime > 0 && !isJumping)
             {
                 Jump();
             }
+            else if (lastGroundedTime > 0)
+            {
+                rb.AddForce(transform.up * -grip);
+            }
             #endregion
+
+            // if (lastGroundedTime < 0.1f)
+            // {
+            //     rb.AddTorque(Mathf.Sign(transform.eulerAngles.z) * rotFix);
+            // }
         }
     }
 
@@ -207,12 +219,12 @@ public class Player : Entity
 
     private void Jump()
     {
-        print(rb.centerOfMass);
+        // print(rb.centerOfMass);
         // apply force
         // rb.AddForce(new Vector2(1, 0) * jumpForce, ForceMode2D.Impulse);
         rb.AddForce((Vector2)transform.up * jumpForce, ForceMode2D.Impulse);
         // transform.rotation = Quaternion.Euler(0, 0, 0);
-        print((Vector2)transform.up);
+        // print((Vector2)transform.up);
         // rb.AddRelativeForce(transform.up * jumpForce, ForceMode2D.Impulse);
         lastGroundedTime = 0;
         lastJumpTime = 0;
@@ -251,6 +263,33 @@ public class Player : Entity
             }
         }
         HungerBar.localScale = new Vector3(1, 1 - hunger / maxHunger, 1);
+    }
+
+    public void OnCollisionEnter2D(Collision2D other)
+    {
+        // print(other.gameObject.layer);
+        // print(groundLayer.value);
+        // if (!groundCling && (1 << other.gameObject.layer & groundLayer.value) != 0)
+        if ((1 << other.gameObject.layer & groundLayer.value) != 0)
+        {
+            if (groundsTouching == 0)
+            {
+                // print(other.GetContact(0));
+                print(other.GetContact(0).normal);
+                // transform.LookAt(other.GetContact(0).normal, transform.up);
+                transform.up = other.GetContact(0).normal;
+
+            }
+            groundsTouching++;
+        }
+    }
+
+    private void OnCollisionExit2D(Collision2D other)
+    {
+        if ((1 << other.gameObject.layer & groundLayer.value) != 0)
+        {
+            groundsTouching--;
+        }
     }
 
     public override void Die()
