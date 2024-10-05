@@ -36,6 +36,9 @@ public class Player : Entity
     public float gravityScale = 1f;
     public float fallGravityMultiplier = 1.2f;
 
+
+
+
     [Header("Hunger")]
     public bool changingHunger = true;
     public float hunger = 100f;
@@ -52,8 +55,10 @@ public class Player : Entity
 
     [Header("Other Stuff")]
 
-    public Transform holdPoint;
+    // public Transform holdPoint;
     InputsThing pInputs;
+    private Vector2 moveInputs;
+    private Vector2 relVel;
 
     // [SerializeField]
     // // private Camera playerCamera;
@@ -61,7 +66,9 @@ public class Player : Entity
     protected override void Awake()
     {
         base.Awake();
-
+        print(rb.centerOfMass);
+        rb.centerOfMass = rb.centerOfMass + Vector2.down * 5f;
+        print(rb.centerOfMass);
 
         pInputs = new InputsThing();
         pInputs.Player.Enable();
@@ -80,7 +87,8 @@ public class Player : Entity
     protected override void Update()
     {
         base.Update();
-        Vector2 moveInputs = pInputs.Player.Move.ReadValue<Vector2>();
+        moveInputs = pInputs.Player.Move.ReadValue<Vector2>();
+        // print(moveInputs);
 
         #region decrementTimers
         lastGroundedTime -= Time.deltaTime;
@@ -94,67 +102,6 @@ public class Player : Entity
         {
 
         }
-
-
-        // Movement
-        // --------
-        if (canMove)
-        {
-            #region MovementH
-
-            // calculate dir want to move and desired velo
-            float targetSpeed = moveInputs.x * moveSpeed * moveSpeedMult;
-            // change accell depending on situation(if our target target speed wants to not be 0 use decell)
-            float accelRate = targetSpeed > .01f ? accel : deccel;
-            // calc diff between current and target
-            float speedDif = targetSpeed - rb.velocity.x;
-            // applies accel to speed diff, raises to power so accel will increase with higher speeds then applies to desired dir
-            float movement = Mathf.Pow(speedDif * accelRate, velPower) * Mathf.Sign(speedDif);
-            // apply force
-            rb.AddForce(Vector2.right * movement);
-
-            #endregion
-
-            #region Friction
-            // if grounded and trying to stop apply extra friction
-            if (lastGroundedTime > 0 && Mathf.Abs(moveInputs.x) < 0.01f)
-            {
-                // use friction ammount
-                float amt = Mathf.Min(Mathf.Abs(rb.velocity.x), Mathf.Abs(frictionAmount));
-                // sets to movement dir
-                amt *= Mathf.Sign(rb.velocity.x);
-                // apply force against movement dir
-                rb.AddForce(Vector2.right * -frictionAmount, ForceMode2D.Impulse);
-            }
-            #endregion
-
-            #region GroundCheck
-            if (Physics2D.OverlapBox(groundCheckPoint.position, groundCheckSize, 0, groundLayer))
-            {
-                lastGroundedTime = groundedTimeBuffer;
-            }
-            #endregion
-
-            #region Jump
-            if (lastGroundedTime > 0 && lastJumpTime > 0 && !isJumping)
-            {
-                Jump();
-            }
-            #endregion
-
-            #region FallGravity
-            if (rb.velocity.y < 0)
-            {
-                rb.gravityScale = gravityScale * fallGravityMultiplier;
-            }
-            else
-            {
-                rb.gravityScale = gravityScale;
-            }
-            #endregion
-        }
-
-
 
         // Update Stats
         #region StatsUpdatingStuff
@@ -170,6 +117,75 @@ public class Player : Entity
         }
         #endregion
 
+    }
+
+    protected void FixedUpdate()
+    {
+        relVel = transform.InverseTransformDirection(rb.velocity);
+
+        // Movement
+        // --------
+        if (canMove)
+        {
+            #region MovementH
+
+            // calculate dir want to move and desired velo
+            float targetSpeed = moveInputs.x * moveSpeed * moveSpeedMult;
+            // change accell depending on situation(if our target target speed wants to not be 0 use decell)
+            float accelRate = Mathf.Abs(targetSpeed) > .01f ? accel : deccel;
+            // calc diff between current and target
+            // float speedDif = targetSpeed - rb.velocity.x;
+            float speedDif = targetSpeed - relVel.x;
+            // applies accel to speed diff, raises to power so accel will increase with higher speeds then applies to desired dir
+            float movement = Mathf.Pow(Mathf.Abs(speedDif * accelRate), velPower) * Mathf.Sign(speedDif);
+            // apply force
+            rb.AddForce(transform.right * movement);
+
+            #endregion
+
+
+            #region Friction
+            // if grounded and trying to stop apply extra friction
+            if (lastGroundedTime > 0 && Mathf.Abs(moveInputs.x) < 0.01f)
+            {
+                // use friction ammount
+                float amt = Mathf.Min(Mathf.Abs(relVel.x), Mathf.Abs(frictionAmount));
+                // sets to movement dir
+                // amt *= Mathf.Sign(rb.velocity.x);
+                amt *= Mathf.Sign(relVel.x);
+                // apply force against movement dir
+                // rb.AddForce(Vector2.right * -amt, ForceMode2D.Impulse);
+                rb.AddForce(transform.right * -amt, ForceMode2D.Impulse);
+            }
+            #endregion
+
+            #region FallGravity
+            if (rb.velocity.y < 0)
+            {
+                rb.gravityScale = gravityScale * fallGravityMultiplier;
+                isJumping = false;
+            }
+            else
+            {
+                rb.gravityScale = gravityScale;
+            }
+            #endregion
+
+            #region GroundCheck
+            if (Physics2D.OverlapBox(groundCheckPoint.position, groundCheckSize, 0, groundLayer))
+            {
+                lastGroundedTime = groundedTimeBuffer;
+                rb.gravityScale = 0;
+            }
+            #endregion
+
+            #region Jump
+            if (lastGroundedTime > 0 && lastJumpTime > 0 && !isJumping)
+            {
+                Jump();
+            }
+            #endregion
+        }
     }
 
     public void JumpS(InputAction.CallbackContext context)
@@ -191,8 +207,13 @@ public class Player : Entity
 
     private void Jump()
     {
+        print(rb.centerOfMass);
         // apply force
-        rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
+        // rb.AddForce(new Vector2(1, 0) * jumpForce, ForceMode2D.Impulse);
+        rb.AddForce((Vector2)transform.up * jumpForce, ForceMode2D.Impulse);
+        // transform.rotation = Quaternion.Euler(0, 0, 0);
+        print((Vector2)transform.up);
+        // rb.AddRelativeForce(transform.up * jumpForce, ForceMode2D.Impulse);
         lastGroundedTime = 0;
         lastJumpTime = 0;
         isJumping = true;
@@ -234,7 +255,7 @@ public class Player : Entity
 
     public override void Die()
     {
-        SceneManager.LoadScene("OtherScene");
+        // SceneManager.LoadScene("OtherScene");
     }
 
 
