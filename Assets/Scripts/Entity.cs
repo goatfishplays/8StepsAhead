@@ -21,11 +21,6 @@ public class Entity : MonoBehaviour
     public float deccel = 3f;
     public float velPower = 1f;
 
-    [Header("Drops")]
-    public GameObject[] drops;
-    public float[] dropsChance;
-    public int[] dropsCounts;
-
     [Header("Components")]
     public Rigidbody2D rb;
     // [Header("Status")]
@@ -88,23 +83,6 @@ public class Entity : MonoBehaviour
 
     public virtual void Die()
     {
-        // generate drops
-        for (int i = 0; i < drops.Length; i++)
-        {
-            int numDrops = 0;
-            for (int j = 0; j < dropsCounts[i]; j++)
-            {
-                if (Random.value < dropsChance[i])
-                {
-                    numDrops++;
-                }
-            }
-            if (numDrops > 0)
-            {
-                GameObject drop = Instantiate(drops[i], transform.position + new Vector3(Random.value, Random.value, Random.value), transform.rotation);
-                drop.GetComponent<Item>().count = numDrops;
-            }
-        }
         Destroy(gameObject);
     }
 

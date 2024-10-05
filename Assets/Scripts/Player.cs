@@ -21,10 +21,20 @@ public class Player : Entity
     public Transform groundCheckPoint;
     public Vector2 groundCheckSize = new Vector2(1, 1);
     public LayerMask groundLayer;
-    public float groundedTimeBuffer = 0f;
+    public float groundedTimeBuffer = 0.2f;
     public float lastGroundedTime = 0f;
 
+    [Header("Jump")]
+    public float jumpForce = 12f;
+    public float jumpCutMultiplier = 1f;
+    public float jumpTimeBuffer = 0.1f;
+    public float lastJumpTime = 0f;
+    public bool isJumping = false;
+    public bool jumpInputReleased = false;
 
+    [Header("Gravity")]
+    public float gravityScale = 1f;
+    public float fallGravityMultiplier = 1.2f;
 
     [Header("Hunger")]
     public bool changingHunger = true;
@@ -52,14 +62,13 @@ public class Player : Entity
     {
         base.Awake();
 
-        // replace later if we figure out a different way to do enemies
-        EnemyBasicAI.playerTransform = this.transform;
-
 
         pInputs = new InputsThing();
         pInputs.Player.Enable();
         pInputs.Player.Use.started += UseS;
         pInputs.Player.Use.canceled += UseE;
+        pInputs.Player.Jump.started += JumpS;
+        pInputs.Player.Jump.canceled += JumpE;
     }
 
     private void OnDestroy()
@@ -72,6 +81,12 @@ public class Player : Entity
     {
         base.Update();
         Vector2 moveInputs = pInputs.Player.Move.ReadValue<Vector2>();
+
+        #region decrementTimers
+        lastGroundedTime -= Time.deltaTime;
+        lastJumpTime -= Time.deltaTime;
+        #endregion
+
 
         // Use key
         // -------
@@ -113,14 +128,30 @@ public class Player : Entity
             }
             #endregion
 
-            #region groundCheck
+            #region GroundCheck
             if (Physics2D.OverlapBox(groundCheckPoint.position, groundCheckSize, 0, groundLayer))
             {
                 lastGroundedTime = groundedTimeBuffer;
             }
             #endregion
 
+            #region Jump
+            if (lastGroundedTime > 0 && lastJumpTime > 0 && !isJumping)
+            {
+                Jump();
+            }
+            #endregion
 
+            #region FallGravity
+            if (rb.velocity.y < 0)
+            {
+                rb.gravityScale = gravityScale * fallGravityMultiplier;
+            }
+            else
+            {
+                rb.gravityScale = gravityScale;
+            }
+            #endregion
         }
 
 
@@ -141,10 +172,31 @@ public class Player : Entity
 
     }
 
+    public void JumpS(InputAction.CallbackContext context)
+    {
+        lastJumpTime = jumpTimeBuffer;
+    }
+
+    public void JumpE(InputAction.CallbackContext context)
+    {
+        if (rb.velocity.y > 0 && isJumping)
+        {
+            // reduce current y vel
+            rb.AddForce(Vector2.down * rb.velocity.y * (1 - jumpCutMultiplier), ForceMode2D.Impulse);
+        }
+
+        jumpInputReleased = true;
+        lastJumpTime = 0;
+    }
+
     private void Jump()
     {
         // apply force
         rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
+        lastGroundedTime = 0;
+        lastJumpTime = 0;
+        isJumping = true;
+        jumpInputReleased = false;
     }
 
     private void UseS(InputAction.CallbackContext context)
