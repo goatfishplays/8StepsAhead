@@ -38,7 +38,7 @@ public class Player : Entity
     public float fallGravityMultiplier = 1.2f;
     public float grip = 1.5f;
     public Vector2 centerOfGrav;
-    // public float rotFix = 1f;
+    public float rotFix = 0.2f;
 
 
 
@@ -126,6 +126,12 @@ public class Player : Entity
         rb.centerOfMass = centerOfGrav;
         // print(rb.centerOfMass);
 
+        print(rb.rotation);
+        // print(transform.rotation);
+        if (groundsTouching == 0 && Mathf.Abs(rb.rotation) > 1f)
+        {
+            rb.rotation /= 1 + rotFix;
+        }
 
         // Movement
         // --------
@@ -275,7 +281,7 @@ public class Player : Entity
             if (groundsTouching == 0)
             {
                 // print(other.GetContact(0));
-                print(other.GetContact(0).normal);
+                // print(other.GetContact(0).normal);
                 // transform.LookAt(other.GetContact(0).normal, transform.up);
                 transform.up = other.GetContact(0).normal;
 
