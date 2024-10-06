@@ -8,6 +8,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using UnityEngine.Animations;
 
 public class Player : Entity
 {
@@ -39,6 +40,14 @@ public class Player : Entity
     public float grip = 1.5f;
     public Vector2 centerOfGrav;
     public float rotFix = 0.2f;
+
+    [Header("Basically A Dash")]
+    public bool canDash = true;
+    public float dashStrength = 20f;
+    public float dashCooldown = 0;
+    public float dashMaxCooldown = 2f;
+    public float dashImmobleTime = 0;
+    public float dashImmobleMaxTime = 1f;
 
 
 
@@ -76,12 +85,16 @@ public class Player : Entity
         pInputs.Player.Use.canceled += UseE;
         pInputs.Player.Jump.started += JumpS;
         pInputs.Player.Jump.canceled += JumpE;
+        pInputs.Player.Dash.started += DashS;
     }
 
     private void OnDestroy()
     {
         pInputs.Player.Use.started -= UseS;
         pInputs.Player.Use.canceled -= UseE;
+        pInputs.Player.Jump.started -= JumpS;
+        pInputs.Player.Jump.canceled -= JumpE;
+        pInputs.Player.Dash.started -= DashS;
     }
 
     protected override void Update()
@@ -93,6 +106,8 @@ public class Player : Entity
         #region decrementTimers
         lastGroundedTime -= Time.deltaTime;
         lastJumpTime -= Time.deltaTime;
+        dashCooldown -= Time.deltaTime;
+        dashImmobleTime -= Time.deltaTime;
         #endregion
 
 
@@ -126,19 +141,12 @@ public class Player : Entity
         rb.centerOfMass = centerOfGrav;
         // print(rb.centerOfMass);
 
-        print(rb.rotation);
-        // print(transform.rotation);
-        if (groundsTouching == 0 && Mathf.Abs(rb.rotation) > 1f)
-        {
-            rb.rotation /= 1 + rotFix;
-        }
 
         // Movement
         // --------
-        if (canMove)
+        if (canMove && dashImmobleTime <= 0)
         {
             #region MovementH
-
             // calculate dir want to move and desired velo
             float targetSpeed = moveInputs.x * moveSpeed * moveSpeedMult;
             // change accell depending on situation(if our target target speed wants to not be 0 use decell)
@@ -150,7 +158,13 @@ public class Player : Entity
             float movement = Mathf.Pow(Mathf.Abs(speedDif * accelRate), velPower) * Mathf.Sign(speedDif);
             // apply force
             rb.AddForce(transform.right * movement);
+            #endregion
 
+            #region Auto Righting
+            if (groundsTouching == 0 && Mathf.Abs(rb.rotation) > 1f)
+            {
+                rb.rotation /= 1 + rotFix;
+            }
             #endregion
 
             #region Friction
@@ -199,11 +213,22 @@ public class Player : Entity
             }
             #endregion
 
-            // if (lastGroundedTime < 0.1f)
-            // {
-            //     rb.AddTorque(Mathf.Sign(transform.eulerAngles.z) * rotFix);
-            // }
         }
+    }
+
+    public void DashS(InputAction.CallbackContext context)
+    {
+        #region Dash
+        if (canDash && dashCooldown <= 0)
+        {
+            Vector2 aim = (Vector2)(Camera.main.ScreenToWorldPoint(pInputs.Player.Look.ReadValue<Vector2>()) - transform.position);
+            // print(aim);
+            transform.right = new Vector2(Mathf.Abs(aim.y), aim.x);
+            rb.AddForce(aim.normalized * dashStrength, ForceMode2D.Impulse);
+            dashCooldown = dashMaxCooldown;
+            dashImmobleTime = dashImmobleMaxTime;
+        }
+        #endregion
     }
 
     public void JumpS(InputAction.CallbackContext context)
