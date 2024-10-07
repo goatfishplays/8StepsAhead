@@ -103,7 +103,7 @@ BoxCollider2D:
     m_Bits: 0
   m_ExcludeLayers:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 247
   m_LayerOverridePriority: 0
   m_ForceSendLayers:
     serializedVersion: 2
@@ -150,6 +150,7 @@ MonoBehaviour:
   liveTime: 0.2
   damage: 10
   kb: 5
+  lives: 1
   breaksOnWall: 0
   breaksOnHit: 0
   ownerImmune: 1

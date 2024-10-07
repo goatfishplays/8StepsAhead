@@ -10,7 +10,7 @@ public class Entity : MonoBehaviour
     public float maxHealth = 100f;
     public float healthChangeRate = .25f;
     public float iFrameTime = 0f;
-    public float iFrameAddTime = .2f;
+    public float iFrameAddTime = .5f;
 
 
     [Header("Movement Settings")]

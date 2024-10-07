@@ -39,6 +39,7 @@ public class Attack : MonoBehaviour
 
     public virtual void OnTriggerEnter2D(Collider2D other)
     {
+        print("hit" + other.gameObject);
         if (other.gameObject.layer == LayerMask.NameToLayer("World") && breaksOnWall)
         {
             Break();
@@ -52,11 +53,15 @@ public class Attack : MonoBehaviour
             // print(other.gameObject.name);
 
             Entity otherEntity = other.gameObject.GetComponent<Entity>();
-            otherEntity.ApplyKnockback((other.transform.position - transform.position).normalized * kb);
-            otherEntity.ChangeHealth(-damage);
-            if (breaksOnHit)
+            if (otherEntity != null)
             {
-                Break();
+                otherEntity.ApplyKnockback((other.transform.position - transform.position).normalized * kb);
+                otherEntity.ChangeHealth(-damage);
+                if (breaksOnHit)
+                {
+                    Break();
+                }
+
             }
 
         }

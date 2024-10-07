@@ -386,7 +386,7 @@ public class Player : Entity
 
     public override void Die()
     {
-        // SceneManager.LoadScene("OtherScene");
+        SceneManager.LoadScene("GameOver");
     }
 
 
