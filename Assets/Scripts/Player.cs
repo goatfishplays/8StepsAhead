@@ -328,7 +328,7 @@ public class Player : Entity
     public override void ChangeHealth(float value, bool addsIframes = true)
     {
         base.ChangeHealth(value, addsIframes);
-        HealthBar.localScale = new Vector3(1, 1 - health / maxHealth, 1);
+        HealthBar.localScale = new Vector3(1 - health / maxHealth, 1, 1);
     }
 
     public void ChangeHunger(float value)
