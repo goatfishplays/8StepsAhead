@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Timers;
 using Unity.VisualScripting;
-using UnityEditor.Tilemaps;
+// using UnityEditor.Tilemaps;
 using UnityEngine;
 
 
@@ -24,6 +24,10 @@ public class Enemy_behavior : Entity
     // public Transform GroundCheckPoint;
     // public Vector2 groundChecksize;
     public LayerMask groundLayer;
+    public Animator animator;
+
+    public GameObject attack;
+    public Transform attackPos;
 
 
 
@@ -96,10 +100,17 @@ public class Enemy_behavior : Entity
             inRange = false;
 
         }*/
+        timer -= Time.deltaTime;
+        // if (timer < 0)
+        // {
+
+        //     animator.SetBool("Attacking", false);
+        // }
         if (inRange)
         {
             EnemyLogic();
         }
+
     }
     private void EnemyLogic() //attack
     {
@@ -110,21 +121,25 @@ public class Enemy_behavior : Entity
 
             stopAttack();
         }
-        else if (distance < attackDistance && cooling == false)
+        else if (distance < attackDistance && timer <= 0)
         {
             Attack();
+
         }
     }
 
     private void Attack()
     {
         attackMode = true;
-
+        timer = intTimer;
+        animator.SetBool("Attacking", true);
+        Instantiate(attack, attackPos);
 
     }
     private void stopAttack()
     {
         attackMode = false;
+        animator.SetBool("Attacking", false);
 
 
     }
@@ -139,19 +154,23 @@ public class Enemy_behavior : Entity
     }
     public void SelectTarget()// change destination whenever it reach the limit
     {
-        float leftdistance = Vector2.Distance(transform.position, leftLimit.position);
-
-        float rightdistance = Vector2.Distance(transform.position, rightLimit.position);
-
-        if (leftdistance > rightdistance)
+        if (leftLimit != null && rightLimit != null)
         {
-            target = leftLimit;
+            float leftdistance = Vector2.Distance(transform.position, leftLimit.position);
+
+            float rightdistance = Vector2.Distance(transform.position, rightLimit.position);
+
+            if (leftdistance > rightdistance)
+            {
+                target = leftLimit;
+            }
+            else if (rightdistance > leftdistance)
+            {
+                target = rightLimit;
+            }
+            Filp();
+
         }
-        else if (rightdistance > leftdistance)
-        {
-            target = rightLimit;
-        }
-        Filp();
 
 
     }
