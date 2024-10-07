@@ -9,6 +9,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.Animations;
+using Unity.Mathematics;
 
 public class Player : Entity
 {
@@ -47,7 +48,15 @@ public class Player : Entity
     public float dashCooldown = 0;
     public float dashMaxCooldown = 2f;
     public float dashImmobleTime = 0;
-    public float dashImmobleMaxTime = 1f;
+    public float dashImmobleMaxTime = .1f;
+
+
+    [Header("Attack")]
+    public GameObject attackPrefab;
+    public Transform attackPoint;
+    public float attackPosOffset;
+    public float attackCooldown;
+    public float maxAttackCooldown;
 
 
 
@@ -68,6 +77,8 @@ public class Player : Entity
     [Header("Other Stuff")]
 
     // public Transform holdPoint;
+    public Animator animator;
+    public SpriteRenderer spriteRenderer;
     InputsThing pInputs;
     private Vector2 moveInputs;
     private Vector2 relVel;
@@ -78,7 +89,8 @@ public class Player : Entity
     protected override void Awake()
     {
         base.Awake();
-
+        animator = GetComponent<Animator>();
+        spriteRenderer = GetComponent<SpriteRenderer>();
         pInputs = new InputsThing();
         pInputs.Player.Enable();
         pInputs.Player.Use.started += UseS;
@@ -108,15 +120,16 @@ public class Player : Entity
         lastJumpTime -= Time.deltaTime;
         dashCooldown -= Time.deltaTime;
         dashImmobleTime -= Time.deltaTime;
+        attackCooldown -= Time.deltaTime;
         #endregion
 
 
-        // Use key
-        // -------
-        if (useInputCached)
-        {
+        // // Use key
+        // // -------
+        // if (useInputCached)
+        // {
 
-        }
+        // }
 
         // Update Stats
         #region StatsUpdatingStuff
@@ -141,8 +154,23 @@ public class Player : Entity
         rb.centerOfMass = centerOfGrav;
         // print(rb.centerOfMass);
 
+        animator.SetFloat("Speed", rb.velocity.magnitude);
+        if (moveInputs.x > 0.1f)
+        {
+            spriteRenderer.flipX = false;
+            attackPoint.localPosition = Vector2.right * attackPosOffset;
+            attackPoint.localRotation = Quaternion.Euler(0, 0, 0);
+        }
+        else if (moveInputs.x < -.1f)
+        {
+            spriteRenderer.flipX = true;
+            attackPoint.localPosition = Vector2.left * attackPosOffset;
+            attackPoint.localRotation = Quaternion.Euler(0, 180, 0);
+        }
 
-        // Movement
+
+
+        // Movement 
         // --------
         if (canMove && dashImmobleTime <= 0)
         {
@@ -151,7 +179,7 @@ public class Player : Entity
             float targetSpeed = moveInputs.x * moveSpeed * moveSpeedMult;
             // change accell depending on situation(if our target target speed wants to not be 0 use decell)
             float accelRate = Mathf.Abs(targetSpeed) > .01f ? accel : deccel;
-            // calc diff between current and target
+            // calc diff between current and target  
             // float speedDif = targetSpeed - rb.velocity.x;
             float speedDif = targetSpeed - relVel.x;
             // applies accel to speed diff, raises to power so accel will increase with higher speeds then applies to desired dir
@@ -161,26 +189,21 @@ public class Player : Entity
             #endregion
 
             #region Auto Righting
-            if (groundsTouching == 0 && Mathf.Abs(rb.rotation) > 1f)
+            if (lastGroundedTime <= 0 && Mathf.Abs(rb.rotation) > 1f)
             {
                 rb.rotation /= 1 + rotFix;
             }
             #endregion
 
-            #region Friction
-            // if grounded and trying to stop apply extra friction
-            if (lastGroundedTime > 0 && Mathf.Abs(moveInputs.x) < 0.01f)
-            {
-                // use friction ammount
-                float amt = Mathf.Min(Mathf.Abs(relVel.x), Mathf.Abs(frictionAmount));
-                // sets to movement dir
-                // amt *= Mathf.Sign(rb.velocity.x);
-                amt *= Mathf.Sign(relVel.x);
-                // apply force against movement dir
-                // rb.AddForce(Vector2.right * -amt, ForceMode2D.Impulse);
-                rb.AddForce(transform.right * -amt, ForceMode2D.Impulse);
-            }
-            #endregion
+            // RaycastHit2D backray = Physics2D.Raycast(groundCheckPoint.position - transform.right * .1f, -transform.up - transform.right * .25f, .1f, groundLayer);
+            // if (backray && (Vector2)transform.up != backray.normal)
+            // {
+            //     print(backray.normal);
+            //     // print(backray.point);
+            //     transform.up = backray.normal;
+            //     // transform.position = backray.point + backray.normal;
+            // }
+
 
             #region FallGravity
             if (rb.velocity.y < 0)
@@ -195,10 +218,15 @@ public class Player : Entity
             #endregion
 
             #region GroundCheck
-            if (Physics2D.OverlapBox(groundCheckPoint.position, groundCheckSize, 0, groundLayer))
+            if (Physics2D.OverlapBox(groundCheckPoint.position, groundCheckSize, rb.rotation, groundLayer) || groundsTouching > 0)
             {
                 lastGroundedTime = groundedTimeBuffer;
                 rb.gravityScale = 0;
+                dashCooldown = 0;
+            }
+            else
+            {
+
             }
             #endregion 
 
@@ -206,21 +234,37 @@ public class Player : Entity
             if (lastGroundedTime > 0 && lastJumpTime > 0 && !isJumping)
             {
                 Jump();
+
             }
-            else if (lastGroundedTime > 0)
+            else if ((lastGroundedTime > 0 || groundsTouching > 0) && !isJumping)
             {
                 rb.AddForce(transform.up * -grip);
             }
             #endregion
 
         }
+        #region Friction
+        // if grounded and trying to stop apply extra friction
+        if (lastGroundedTime > 0 && Mathf.Abs(moveInputs.x) < 0.01f)
+        {
+            // use friction ammount
+            float amt = Mathf.Min(Mathf.Abs(relVel.x), Mathf.Abs(frictionAmount));
+            // sets to movement dir
+            // amt *= Mathf.Sign(rb.velocity.x);
+            amt *= Mathf.Sign(relVel.x);
+            // apply force against movement dir
+            // rb.AddForce(Vector2.right * -amt, ForceMode2D.Impulse);
+            rb.AddForce(transform.right * -amt, ForceMode2D.Impulse);
+        }
+        #endregion
     }
 
     public void DashS(InputAction.CallbackContext context)
     {
         #region Dash
-        if (canDash && dashCooldown <= 0)
+        if (canDash && dashCooldown <= 0 && lastGroundedTime > 0)
         {
+            rb.velocity = Vector2.zero;
             Vector2 aim = (Vector2)(Camera.main.ScreenToWorldPoint(pInputs.Player.Look.ReadValue<Vector2>()) - transform.position);
             // print(aim);
             transform.right = new Vector2(Mathf.Abs(aim.y), aim.x);
@@ -266,6 +310,14 @@ public class Player : Entity
     private void UseS(InputAction.CallbackContext context)
     {
         useInputCached = true;
+        if (attackCooldown <= 0)
+        {
+            attackCooldown = maxAttackCooldown;
+            GameObject attack = Instantiate(attackPrefab, attackPoint);
+            attack.GetComponent<Attack>().owner = gameObject;
+
+
+        }
     }
 
     private void UseE(InputAction.CallbackContext context)
@@ -303,13 +355,22 @@ public class Player : Entity
         // if (!groundCling && (1 << other.gameObject.layer & groundLayer.value) != 0)
         if ((1 << other.gameObject.layer & groundLayer.value) != 0)
         {
+            // rb.velocity = Vector3.zero;
+            isJumping = false;
             if (groundsTouching == 0)
+            // { dashCooldown = 0; }
             {
-                // print(other.GetContact(0));
+                // print(other.GetContact(0)); 
                 // print(other.GetContact(0).normal);
-                // transform.LookAt(other.GetContact(0).normal, transform.up);
-                transform.up = other.GetContact(0).normal;
+                // print(Mathf.Rad2Deg * Mathf.Atan2(other.GetContact(0).normal.y, other.GetContact(0).normal.x));
 
+                // transform.LookAt(other.GetContact(0).normal, transform.up);
+                // transform.up = other.GetContact(0).normal;
+                rb.rotation = -Mathf.Rad2Deg * Mathf.Atan2(other.GetContact(0).normal.x, other.GetContact(0).normal.y);
+
+
+                // rb.AddForce(-transform.up, ForceMode2D.Impulse);
+                // rb.velocity = -transform.up;
             }
             groundsTouching++;
         }

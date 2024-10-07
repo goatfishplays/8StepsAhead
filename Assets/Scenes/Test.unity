@@ -2251,7 +2251,7 @@ MonoBehaviour:
   rb: {fileID: 0}
   frictionAmount: 0.22
   groundCheckPoint: {fileID: 1018227001}
-  groundCheckSize: {x: 0.4, y: 0.1}
+  groundCheckSize: {x: 0.4, y: 0.3}
   groundLayer:
     serializedVersion: 2
     m_Bits: 64
